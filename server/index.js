@@ -456,7 +456,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('sendMessage', async (data) => {
-        const { message, conversationId } = data;
+        const { message, conversationId, resetFirst } = data;
 
         try {
             const clientInfo = serverStats.activeClients.get(clientId);
@@ -479,7 +479,7 @@ io.on('connection', (socket) => {
                     conversationId,
                     model: sharedLmarena.currentModel || 'unknown'
                 });
-            });
+            }, resetFirst);
 
             const response = typeof result === 'object' ? result.response : result;
 

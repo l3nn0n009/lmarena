@@ -294,9 +294,51 @@ class LMArenaOptimized {
         return { success: true };
     }
 
-    async sendMessage(message, onToken = null) {
+    // Reset to fresh conversation state (critical for autonomous mode)
+    async resetConversation() {
+        if (!this.page) return;
+
+        try {
+            // Try clicking "New Chat" button
+            const clicked = await this.page.evaluate(() => {
+                // Look for new chat button
+                const newChatBtn = document.querySelector('button[aria-label*="New"]') ||
+                    document.querySelector('a[href*="new"]') ||
+                    Array.from(document.querySelectorAll('button')).find(b =>
+                        b.textContent?.toLowerCase().includes('new')
+                    );
+
+                if (newChatBtn) {
+                    newChatBtn.click();
+                    return true;
+                }
+                return false;
+            });
+
+            if (clicked) {
+                await delay(500);
+                console.log('[LMArena-Opt] Started new conversation');
+            } else {
+                // Fallback: reload page to reset
+                const { url } = this.buildUrl(this.currentModel);
+                await this.page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+                await delay(500);
+                await this.stripDOM();
+                console.log('[LMArena-Opt] Reset via page reload');
+            }
+        } catch (e) {
+            console.log('[LMArena-Opt] Reset error:', e.message);
+        }
+    }
+
+    async sendMessage(message, onToken = null, resetFirst = false) {
         if (!this.isInitialized) {
             throw new Error('Not initialized');
+        }
+
+        // Reset conversation if requested (for autonomous mode continuation)
+        if (resetFirst) {
+            await this.resetConversation();
         }
 
         console.log(`[LMArena-Opt] Sending: ${message.substring(0, 50)}...`);

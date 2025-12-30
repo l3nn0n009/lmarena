@@ -323,8 +323,9 @@ ${ctx ? `\nCONTEXT:\n${ctx}` : ''}`;
                 console.log(`\n${c.magenta}⚡ Step ${this.stepCount} complete. Continuing...${c.reset}\n`);
 
                 setTimeout(() => {
-                    this.sendMessage(`Results:\n${summary}\n\nContinue with the next step. If all steps are done, say "COMPLETE" and summarize what was built.`);
-                }, 1000);
+                    // Pass resetFirst=true to ensure fresh conversation for each step
+                    this.sendMessage(`Results:\n${summary}\n\nContinue with the next step. If all steps are done, say "COMPLETE" and summarize what was built.`, true);
+                }, 1500);
                 return;
             }
         }
@@ -456,7 +457,7 @@ ${ctx ? `\nCONTEXT:\n${ctx}` : ''}`;
         }
     }
 
-    async sendMessage(message) {
+    async sendMessage(message, resetFirst = false) {
         if (!this.socket?.connected) {
             console.log(`${c.red}Not connected. Reconnecting...${c.reset}`);
             try {
@@ -470,7 +471,8 @@ ${ctx ? `\nCONTEXT:\n${ctx}` : ''}`;
         const systemPrompt = this.buildSystemPrompt();
         this.socket.emit('sendMessage', {
             message: `${systemPrompt}\n\n---\n\nUser: ${message}`,
-            conversationId: 'nebula-session'
+            conversationId: 'nebula-session',
+            resetFirst: resetFirst
         });
     }
 
