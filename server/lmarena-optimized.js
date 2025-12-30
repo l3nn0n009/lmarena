@@ -210,108 +210,51 @@ class LMArenaOptimized {
 
     async stripDOM() {
         await this.page.evaluate(() => {
-            // ULTRA-AGGRESSIVE: Remove everything we don't need
+            // SAFE stripping - CSS only, no element removal
+            // Element removal can break React/SSE functionality
             const style = document.createElement('style');
             style.id = 'nebula-strip';
             style.textContent = `
-                /* Hide absolutely everything */
+                /* Disable animations for performance */
                 *, *::before, *::after { 
-                    animation: none !important;
-                    transition: none !important;
+                    animation-duration: 0s !important;
+                    transition-duration: 0s !important;
                 }
                 
-                body > * { display: none !important; }
-                body > div:first-child { display: block !important; }
+                /* Hide sidebar */
+                aside, [data-side="left"], .sidebar { 
+                    display: none !important; 
+                }
                 
-                /* Kill all decorative elements */
-                aside, header, nav, footer, 
-                .sidebar, [data-side], 
-                .prose, [class*="prose"],
-                [class*="banner"], [class*="announcement"],
-                [class*="avatar"], [class*="icon"],
-                svg:not([class*="send"]), img,
-                video, canvas, iframe,
-                [class*="tooltip"], [class*="modal"],
-                [class*="dropdown"]:not(:focus-within),
-                ul[class*="flex-col"] { 
-                    display: none !important;
-                    visibility: hidden !important;
-                    width: 0 !important;
+                /* Hide header */
+                header, nav { 
+                    display: none !important; 
+                }
+                
+                /* Hide chat history (old messages) - saves memory */
+                .prose, [class*="prose"], ul[class*="flex-col-reverse"] > li:not(:last-child) { 
+                    display: none !important; 
                     height: 0 !important;
                     overflow: hidden !important;
-                    pointer-events: none !important;
                 }
                 
-                /* Only show textarea and send button */
+                /* Hide banners */
+                [class*="banner"], [class*="announcement"] { 
+                    display: none !important; 
+                }
+                
+                /* Keep textarea visible */
                 textarea { 
-                    display: block !important;
+                    display: block !important; 
                     visibility: visible !important;
-                }
-                
-                button[type="submit"], button[aria-label*="Send"], button[aria-label*="send"] {
-                    display: block !important;
-                    visibility: visible !important;
-                }
-                
-                /* Minimize everything else */
-                main, section, article, div { 
-                    padding: 0 !important;
-                    margin: 0 !important;
-                    border: none !important;
-                    box-shadow: none !important;
-                    background: transparent !important;
                 }
             `;
             document.head.appendChild(style);
 
-            // Aggressively remove DOM nodes to free memory
-            const killList = [
-                'aside', 'header', 'nav', 'footer',
-                '.sidebar', '[data-side]',
-                '.prose', '[class*="prose"]',
-                '[class*="banner"]', '[class*="announcement"]',
-                '[class*="avatar"]', 'img:not([src*="data:"])',
-                'video', 'canvas', 'iframe:not([src*="recaptcha"])',
-                '[class*="tooltip"]', '[class*="popover"]',
-                'ul[class*="flex-col-reverse"]'
-            ];
-
-            killList.forEach(selector => {
-                try {
-                    document.querySelectorAll(selector).forEach(el => {
-                        if (el && el.parentNode) el.remove();
-                    });
-                } catch (e) { }
-            });
-
-            // Disable observers and intervals that waste CPU
-            if (window._nebulaCleanup) return;
-            window._nebulaCleanup = true;
-
-            // Clear any existing mutation observers (except ours)
-            const origMutationObserver = window.MutationObserver;
-            let ourObservers = new Set();
-
-            window.MutationObserver = function (...args) {
-                const obs = new origMutationObserver(...args);
-                ourObservers.add(obs);
-                return obs;
-            };
-
-            console.log('[Nebula] DOM stripped aggressively');
+            console.log('[Nebula] DOM stripped (CSS only)');
         });
-
-        // Periodically clean up new elements that might appear
-        this.cleanupInterval = setInterval(async () => {
-            try {
-                await this.page.evaluate(() => {
-                    document.querySelectorAll('.prose, [class*="prose"], ul[class*="flex-col-reverse"]').forEach(el => {
-                        if (el && el.parentNode) el.remove();
-                    });
-                });
-            } catch (e) { }
-        }, 5000);
     }
+
 
 
     async selectModel(modelName) {

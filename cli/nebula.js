@@ -73,14 +73,16 @@ class NebulaCLI {
 ENVIRONMENT:
 - Project: ${this.projectDir}
 - Working Dir: ${this.workingDir}
-- OS: Windows (use PowerShell commands, NOT bash/curl)
+- OS: Windows (PowerShell)
 - Mode: ${this.autonomousMode ? 'AUTONOMOUS - keep working until complete' : 'INTERACTIVE'}
+- Port 3000 is RESERVED (use 3001, 8080, etc for dev servers)
 
 RULES:
 1. Match existing code conventions
-2. Use PowerShell on Windows (Invoke-WebRequest, not curl)
-3. Be concise - no filler text
-4. In autonomous mode, continue without waiting
+2. PowerShell syntax: use SEMICOLON (;) not && to chain commands
+3. Use Set-Location instead of cd, or just run commands directly
+4. Be concise - no filler text
+5. In autonomous mode, continue without waiting
 
 TOOLS (use XML format):
 
