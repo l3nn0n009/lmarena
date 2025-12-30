@@ -1,13 +1,17 @@
 {
-  "name": "lmarena-wrapper",
-  "version": "1.0.0",
-  "description": "Local wrapper application for LMArena with browser automation",
+  "name": "nebula-cli",
+  "version": "2.0.0",
+  "description": "NebulaCLI - Autonomous AI Coding Agent powered by Claude, GPT & Gemini via LMArena",
   "main": "server/index.js",
+  "bin": {
+    "nebula": "./cli/nebula.js"
+  },
   "scripts": {
     "start": "node server/index.js",
     "server": "node server/index.js",
     "setup": "node server/setup.js",
-    "cli": "node cli/cli.js",
+    "nebula": "node cli/nebula.js",
+    "cli": "node cli/nebula.js",
     "grove": "node cli/cli.js",
     "client": "npm run dev --prefix client",
     "build": "npm run build --prefix client"
