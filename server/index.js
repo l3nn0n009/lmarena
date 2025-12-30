@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * LMArena Wrapper - Main Server
  * Express + Socket.io server for browser automation

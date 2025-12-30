@@ -4,7 +4,8 @@
   "description": "NebulaCLI - Autonomous AI Coding Agent powered by Claude, GPT & Gemini via LMArena",
   "main": "server/index.js",
   "bin": {
-    "nebula": "./cli/nebula.js"
+    "nebula": "./cli/nebula.js",
+    "nebula-server": "./server/index.js"
   },
   "scripts": {
     "start": "node server/index.js",

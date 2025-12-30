@@ -49,7 +49,8 @@ class BrowserController {
     async killChrome() {
         try {
             console.log('[Browser] Killing any existing Chrome processes...');
-            execSync('taskkill /F /IM chrome.exe /T 2>nul', { stdio: 'pipe' });
+            // Use PowerShell for cross-platform Windows compatibility
+            execSync('powershell -NoProfile -Command "Stop-Process -Name chrome -Force -ErrorAction SilentlyContinue"', { stdio: 'pipe' });
         } catch (e) { /* ignore */ }
 
         // Wait for Chrome to die
