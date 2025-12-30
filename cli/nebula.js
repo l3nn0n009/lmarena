@@ -339,10 +339,34 @@ Keep working until the task is FULLY complete. Verify your work.`;
 
         if (this.pendingToolCalls.length > 0) {
             console.log(`${c.dim}───────────────────────────${c.reset}`);
+
+            // Execute all tool calls and collect results
+            const toolResults = [];
             for (const tc of this.pendingToolCalls) {
-                this.executeToolCall(tc);
+                const result = this.executeToolCall(tc);
+                toolResults.push(result);
             }
+
             console.log(`${c.dim}───────────────────────────${c.reset}\n`);
+
+            // In autonomous mode, send results back to AI to continue
+            if (this.autonomousMode && toolResults.length > 0) {
+                // Wait a moment for any async commands to settle
+                setTimeout(() => {
+                    const resultSummary = toolResults.map(r =>
+                        `${r.success ? '✓' : '✗'} ${r.tool}: ${r.message}`
+                    ).join('\n');
+
+                    console.log(`${c.magenta}⚡ Continuing autonomously...${c.reset}\n`);
+
+                    // Send continuation prompt to AI
+                    this.sendMessage(`Tool execution results:\n${resultSummary}\n\nContinue with the next step.`);
+                }, 1500); // Wait 1.5s for command output
+
+                this.pendingToolCalls = [];
+                return; // Don't show prompt, we're continuing
+            }
+
             this.pendingToolCalls = [];
         }
 
@@ -351,28 +375,32 @@ Keep working until the task is FULLY complete. Verify your work.`;
 
     executeToolCall(tc) {
         const { tool, path: filePath, content, command } = tc;
+        let result = { tool, success: false, message: '' };
 
         switch (tool) {
             case 'create_file':
             case 'write_file':
             case 'edit_file':
-                this.createFile(filePath, content);
+                result = this.createFile(filePath, content);
                 break;
             case 'read_file':
-                this.readFile(filePath);
+                result = this.readFile(filePath);
                 break;
             case 'run_command':
-                this.runCommand(command);
+                result = this.runCommand(command);
                 break;
             default:
                 console.log(`${c.yellow}Unknown tool: ${tool}${c.reset}`);
+                result = { tool, success: false, message: `Unknown tool: ${tool}` };
         }
+
+        return result;
     }
 
     createFile(filePath, content) {
         if (!filePath || !content) {
             console.log(`${c.red}✗ Missing path or content${c.reset}`);
-            return;
+            return { tool: 'create_file', success: false, message: 'Missing path or content' };
         }
 
         try {
@@ -389,8 +417,10 @@ Keep working until the task is FULLY complete. Verify your work.`;
             const lines = content.split('\n').length;
             const action = existed ? 'Updated' : 'Created';
             console.log(`${c.green}✓ ${action}:${c.reset} ${filePath} ${c.dim}(${lines} lines)${c.reset}`);
+            return { tool: 'create_file', success: true, message: `${action} ${filePath} (${lines} lines)` };
         } catch (err) {
             console.log(`${c.red}✗ ${filePath}: ${err.message}${c.reset}`);
+            return { tool: 'create_file', success: false, message: err.message };
         }
     }
 
@@ -400,8 +430,10 @@ Keep working until the task is FULLY complete. Verify your work.`;
             const content = fs.readFileSync(fullPath, 'utf8');
             const lines = content.split('\n').length;
             console.log(`${c.green}✓ Read:${c.reset} ${filePath} ${c.dim}(${lines} lines)${c.reset}`);
+            return { tool: 'read_file', success: true, message: `Read ${filePath} (${lines} lines)`, content };
         } catch (err) {
             console.log(`${c.red}✗ Read failed: ${err.message}${c.reset}`);
+            return { tool: 'read_file', success: false, message: err.message };
         }
     }
 
@@ -409,21 +441,30 @@ Keep working until the task is FULLY complete. Verify your work.`;
         if (this.autonomousMode) {
             // In autonomous mode, actually run commands
             console.log(`${c.yellow}⚡ Running:${c.reset} ${command}`);
-            exec(command, { cwd: this.projectDir, timeout: 30000 }, (error, stdout, stderr) => {
-                if (error) {
-                    console.log(`${c.red}✗ Command failed: ${error.message}${c.reset}`);
-                } else {
-                    const output = (stdout || stderr || '').trim();
-                    if (output) {
-                        console.log(`${c.dim}${output.substring(0, 200)}${output.length > 200 ? '...' : ''}${c.reset}`);
-                    }
-                    console.log(`${c.green}✓ Command completed${c.reset}`);
+
+            try {
+                const result = require('child_process').execSync(command, {
+                    cwd: this.projectDir,
+                    timeout: 60000,
+                    encoding: 'utf8',
+                    stdio: ['pipe', 'pipe', 'pipe']
+                });
+                const output = (result || '').trim();
+                if (output) {
+                    console.log(`${c.dim}${output.substring(0, 300)}${output.length > 300 ? '...' : ''}${c.reset}`);
                 }
-            });
+                console.log(`${c.green}✓ Command completed${c.reset}`);
+                return { tool: 'run_command', success: true, message: `Executed: ${command}`, output: output.substring(0, 500) };
+            } catch (err) {
+                const errOutput = err.stderr?.toString() || err.message;
+                console.log(`${c.red}✗ Command failed: ${errOutput.substring(0, 200)}${c.reset}`);
+                return { tool: 'run_command', success: false, message: errOutput.substring(0, 200) };
+            }
         } else {
             // In interactive mode, just show the command
             console.log(`${c.yellow}⚠ Command:${c.reset} ${command}`);
             console.log(`${c.dim}  (Run manually or enable /auto mode)${c.reset}`);
+            return { tool: 'run_command', success: true, message: `Shown to user: ${command}` };
         }
     }
 
