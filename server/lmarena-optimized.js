@@ -210,60 +210,109 @@ class LMArenaOptimized {
 
     async stripDOM() {
         await this.page.evaluate(() => {
-            // NUKE everything except textarea and nearby controls
+            // ULTRA-AGGRESSIVE: Remove everything we don't need
             const style = document.createElement('style');
-            style.id = 'grove-nuke';
+            style.id = 'nebula-strip';
             style.textContent = `
-                /* Hide EVERYTHING by default */
-                body > * { display: none !important; }
-                
-                /* Show only the main app container */
-                body > div:first-child { display: block !important; }
-                
-                /* Hide sidebar completely */
-                aside, [data-side="left"], .sidebar { display: none !important; }
-                
-                /* Hide header */
-                header, nav { display: none !important; }
-                
-                /* Hide all chat messages - CRITICAL for performance */
-                .prose, [class*="prose"], ul[class*="flex-col-reverse"] { 
-                    display: none !important; 
-                    height: 0 !important;
-                    overflow: hidden !important;
+                /* Hide absolutely everything */
+                *, *::before, *::after { 
+                    animation: none !important;
+                    transition: none !important;
                 }
                 
-                /* Hide any banners */
-                [class*="banner"], [class*="announcement"] { display: none !important; }
+                body > * { display: none !important; }
+                body > div:first-child { display: block !important; }
                 
-                /* But SHOW the input area */
+                /* Kill all decorative elements */
+                aside, header, nav, footer, 
+                .sidebar, [data-side], 
+                .prose, [class*="prose"],
+                [class*="banner"], [class*="announcement"],
+                [class*="avatar"], [class*="icon"],
+                svg:not([class*="send"]), img,
+                video, canvas, iframe,
+                [class*="tooltip"], [class*="modal"],
+                [class*="dropdown"]:not(:focus-within),
+                ul[class*="flex-col"] { 
+                    display: none !important;
+                    visibility: hidden !important;
+                    width: 0 !important;
+                    height: 0 !important;
+                    overflow: hidden !important;
+                    pointer-events: none !important;
+                }
+                
+                /* Only show textarea and send button */
                 textarea { 
-                    display: block !important; 
+                    display: block !important;
                     visibility: visible !important;
                 }
                 
-                /* Minimal layout */
-                main { 
-                    padding: 0 !important; 
-                    margin: 0 !important;
+                button[type="submit"], button[aria-label*="Send"], button[aria-label*="send"] {
+                    display: block !important;
+                    visibility: visible !important;
                 }
                 
-                /* Hide model selector UI but keep functionality */
-                button:not([aria-label*="Send"]):not([type="submit"]) {
-                    visibility: hidden !important;
-                    height: 0 !important;
-                    overflow: hidden !important;
+                /* Minimize everything else */
+                main, section, article, div { 
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    border: none !important;
+                    box-shadow: none !important;
+                    background: transparent !important;
                 }
             `;
             document.head.appendChild(style);
 
-            // Also directly remove heavy elements
-            const toRemove = document.querySelectorAll('aside, header, .prose, [class*="prose"]');
-            toRemove.forEach(el => el.remove());
+            // Aggressively remove DOM nodes to free memory
+            const killList = [
+                'aside', 'header', 'nav', 'footer',
+                '.sidebar', '[data-side]',
+                '.prose', '[class*="prose"]',
+                '[class*="banner"]', '[class*="announcement"]',
+                '[class*="avatar"]', 'img:not([src*="data:"])',
+                'video', 'canvas', 'iframe:not([src*="recaptcha"])',
+                '[class*="tooltip"]', '[class*="popover"]',
+                'ul[class*="flex-col-reverse"]'
+            ];
 
-            console.log('[Grove] DOM stripped');
+            killList.forEach(selector => {
+                try {
+                    document.querySelectorAll(selector).forEach(el => {
+                        if (el && el.parentNode) el.remove();
+                    });
+                } catch (e) { }
+            });
+
+            // Disable observers and intervals that waste CPU
+            if (window._nebulaCleanup) return;
+            window._nebulaCleanup = true;
+
+            // Clear any existing mutation observers (except ours)
+            const origMutationObserver = window.MutationObserver;
+            let ourObservers = new Set();
+
+            window.MutationObserver = function (...args) {
+                const obs = new origMutationObserver(...args);
+                ourObservers.add(obs);
+                return obs;
+            };
+
+            console.log('[Nebula] DOM stripped aggressively');
         });
+
+        // Periodically clean up new elements that might appear
+        this.cleanupInterval = setInterval(async () => {
+            try {
+                await this.page.evaluate(() => {
+                    document.querySelectorAll('.prose, [class*="prose"], ul[class*="flex-col-reverse"]').forEach(el => {
+                        if (el && el.parentNode) el.remove();
+                    });
+                });
+            } catch (e) { }
+        }, 5000);
     }
+
 
     async selectModel(modelName) {
         if (!this.isInitialized) {

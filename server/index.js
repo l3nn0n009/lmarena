@@ -513,6 +513,51 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('generateImage', async (data) => {
+        const { prompt, filename } = data;
+
+        try {
+            console.log(`[Server] Generating image: ${prompt.substring(0, 50)}...`);
+
+            // Switch to image model
+            await sharedLmarena.selectModel('gpt-image-1.5');
+
+            // Generate the image
+            const result = await sharedLmarena.sendMessage(prompt, null);
+
+            // Extract image URL from response
+            const imageUrl = result.imageUrl || null;
+
+            if (imageUrl) {
+                // Download and save image
+                const imagePath = path.join(__dirname, '..', 'generated', filename);
+                const dir = path.dirname(imagePath);
+                if (!fsSync.existsSync(dir)) {
+                    fsSync.mkdirSync(dir, { recursive: true });
+                }
+
+                // For now, just return the URL - client will handle download
+                socket.emit('imageGenerated', {
+                    success: true,
+                    imagePath: null,
+                    imageUrl: imageUrl,
+                    filename
+                });
+            } else {
+                socket.emit('imageGenerated', {
+                    success: false,
+                    error: 'No image generated'
+                });
+            }
+        } catch (error) {
+            logError(error, 'generateImage');
+            socket.emit('imageGenerated', {
+                success: false,
+                error: error.message
+            });
+        }
+    });
+
     socket.on('disconnect', () => {
         console.log(`[Server] Client disconnected: ${clientId}`);
         serverStats.activeClients.delete(clientId);
