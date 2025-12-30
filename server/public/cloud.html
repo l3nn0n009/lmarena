@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Grove Cloud</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #111111;
+            --bg-tertiary: #1a1a1a;
+            --bg-hover: #1f1f1f;
+            --border: #2a2a2a;
+            --border-light: #333;
+            --text-primary: #f5f5f5;
+            --text-secondary: #888888;
+            --text-muted: #555555;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --accent-dim: rgba(16, 185, 129, 0.1);
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --blue: #3b82f6;
+            --purple: #8b5cf6;
+            --radius: 8px;
+            --radius-lg: 12px;
+        }
+
+        body {
+            font-family: 'Space Grotesk', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .app {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            height: 100vh;
+        }
+
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+
+        .new-agent-btn {
+            width: 100%;
+            background: var(--accent);
+            color: #000;
+            border: none;
+            padding: 12px;
+            border-radius: var(--radius);
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+            font-family: inherit;
+            transition: background 0.15s;
+        }
+
+        .new-agent-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .agents-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .agents-section-title {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 8px;
+            margin-top: 8px;
+        }
+
+        .agent-item {
+            padding: 12px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            margin-bottom: 4px;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+        }
+
+        .agent-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .agent-item.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .agent-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .agent-name {
+            font-weight: 600;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .agent-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .agent-status.idle {
+            background: var(--text-muted);
+        }
+
+        .agent-status.thinking {
+            background: var(--warning);
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        .agent-model {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 1px solid var(--border);
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .main {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .agent-view {
+            display: none;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .agent-view.active {
+            display: flex;
+        }
+
+        .agent-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .agent-header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .agent-title {
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .agent-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        .char-counter {
+            font-size: 11px;
+            padding: 4px 10px;
+            background: var(--accent-dim);
+            border-radius: 4px;
+            color: var(--accent);
+            font-family: 'JetBrains Mono', monospace;
+            display: none;
+        }
+
+        .char-counter.active {
+            display: inline-block;
+        }
+
+        .agent-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.15s;
+        }
+
+        .btn:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-light);
+        }
+
+        .btn.primary {
+            background: var(--accent);
+            color: #000;
+            border-color: var(--accent);
+        }
+
+        .btn.primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn.danger {
+            color: var(--error);
+        }
+
+        .btn.danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn.small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 24px;
+            min-height: 0;
+        }
+
+        .message {
+            margin-bottom: 24px;
+            max-width: 90%;
+        }
+
+        .message.user {
+            margin-left: auto;
+        }
+
+        .message-header {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+
+        .message.user .message-content {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+        }
+
+        .message-content pre {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+        }
+
+        .message-content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .cursor {
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            50% {
+                opacity: 1;
+            }
+
+            51%,
+            100% {
+                opacity: 0;
+            }
+        }
+
+        /* File Card */
+        .file-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            margin: 12px 0;
+            overflow: hidden;
+        }
+
+        .file-card-header {
+            padding: 12px 14px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+
+        .file-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-hover);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .file-icon.js {
+            background: #f7df1e20;
+            color: #f7df1e;
+        }
+
+        .file-icon.ts {
+            background: #3178c620;
+            color: #3178c6;
+        }
+
+        .file-icon.html {
+            background: #e34c2620;
+            color: #e34c26;
+        }
+
+        .file-icon.css {
+            background: #1572b620;
+            color: #1572b6;
+        }
+
+        .file-icon.md {
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .file-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .file-path {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .file-status {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: var(--accent-dim);
+            color: var(--accent);
+        }
+
+        .file-status.streaming {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .file-expand-icon {
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+
+        .file-card.expanded .file-expand-icon {
+            transform: rotate(180deg);
+        }
+
+        .file-content {
+            display: none;
+            border-top: 1px solid var(--border);
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .file-card.expanded .file-content {
+            display: block;
+        }
+
+        .file-content pre {
+            margin: 0;
+            padding: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            background: var(--bg-primary);
+        }
+
+        .input-container {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+
+        .input-wrapper {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .input-field {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 52px;
+            max-height: 200px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .send-btn {
+            background: var(--accent);
+            color: #000;
+            border: none;
+            width: 52px;
+            height: 52px;
+            border-radius: var(--radius);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:hover {
+            background: var(--accent-hover);
+        }
+
+        .send-btn:disabled {
+            background: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        .send-btn svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 560px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 24px;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+
+        .form-input,
+        .form-select,
+        .form-textarea {
+            width: 100%;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-select option {
+            background: var(--bg-primary);
+        }
+
+        .form-help {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 6px;
+        }
+
+        .context-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .context-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius);
+        }
+
+        .context-item-name {
+            flex: 1;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .context-item-remove {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+        }
+
+        .context-item-remove:hover {
+            color: var(--error);
+        }
+
+        .add-context-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .settings-panel {
+            position: fixed;
+            right: -420px;
+            top: 0;
+            bottom: 0;
+            width: 420px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            z-index: 50;
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .settings-panel.open {
+            right: 0;
+        }
+
+        .settings-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .settings-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .settings-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .setting-section {
+            margin-bottom: 24px;
+        }
+
+        .setting-section-title {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        /* Tool execution log */
+        .tool-log {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            border: 1px solid var(--accent);
+        }
+
+        .tool-log-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: var(--accent);
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .tool-log-item {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-left: 20px;
+        }
+
+        .tool-log-item.success {
+            color: var(--accent);
+        }
+
+        .tool-log-item.error {
+            color: var(--error);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><span class="logo-dot"></span> Grove Cloud</div>
+                <button class="new-agent-btn" onclick="showNewAgentModal()">+ New Agent</button>
+            </div>
+            <div class="agents-list" id="agents-list">
+                <div class="agents-section-title">Active Agents</div>
+            </div>
+            <div class="sidebar-footer">
+                <div class="stats-row"><span>Messages</span><span id="total-messages">0</span></div>
+                <div class="stats-row"><span>Uptime</span><span id="uptime">0m</span></div>
+            </div>
+        </div>
+
+        <div class="main">
+            <div class="empty-state" id="empty-state">
+                <div class="empty-icon">⚡</div>
+                <div class="empty-title">No Agent Selected</div>
+                <p>Create a new agent or select one from the sidebar</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="new-agent-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <span class="modal-title">Create New Agent</span>
+                <button class="modal-close" onclick="hideNewAgentModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Agent Name</label>
+                    <input type="text" class="form-input" id="agent-name" placeholder="e.g., frontend-agent">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Model</label>
+                    <select class="form-select" id="agent-model">
+                        <option value="">Loading...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Project Directory</label>
+                    <input type="text" class="form-input" id="agent-project" placeholder="C:\Projects\my-app">
+                    <div class="form-help">Files will be created relative to this directory (case-sensitive)</div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Context Files</label>
+                    <div class="context-list" id="new-agent-contexts"></div>
+                    <div class="add-context-row">
+                        <input type="text" class="form-input" id="new-context-path" placeholder="e.g., AGENT.md">
+                        <button class="btn small" onclick="addNewAgentContext()">Add</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="hideNewAgentModal()">Cancel</button>
+                <button class="btn primary" onclick="createAgent()">Create Agent</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-panel" id="settings-panel">
+        <div class="settings-header">
+            <span class="settings-title">Agent Settings</span>
+            <button class="modal-close" onclick="closeSettings()">&times;</button>
+        </div>
+        <div class="settings-body">
+            <div class="setting-section">
+                <div class="setting-section-title">Model</div>
+                <select class="form-select" id="settings-model" onchange="updateAgentModel()"></select>
+            </div>
+            <div class="setting-section">
+                <div class="setting-section-title">Project Directory</div>
+                <input type="text" class="form-input" id="settings-project" onchange="updateAgentProject()">
+            </div>
+            <div class="setting-section">
+                <div class="setting-section-title">Context Files</div>
+                <div class="context-list" id="settings-contexts"></div>
+                <div class="add-context-row">
+                    <input type="text" class="form-input" id="settings-context-path" placeholder="Path to .md file">
+                    <button class="btn small" onclick="addSettingsContext()">Add</button>
+                </div>
+            </div>
+            <div class="setting-section">
+                <div class="setting-section-title">Actions</div>
+                <button class="btn" style="margin-bottom: 8px; width: 100%;" onclick="clearChat(activeAgentId)">Clear
+                    Chat</button>
+                <button class="btn danger" style="width: 100%;" onclick="deleteAgent()">Delete Agent</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const agents = new Map();
+        let activeAgentId = null;
+        let models = [];
+        let newAgentContexts = [];
+        const STORAGE_KEY = 'grove_cloud_agents';
+
+        // System prompt for tool calling
+        function buildSystemPrompt(agent) {
+            let prompt = `You are Grove, an intelligent AI coding assistant. You help developers write, refactor, and debug code.
+
+PROJECT DIRECTORY: ${agent.project || 'Not set'}
+
+## TOOL CALLS
+When creating/editing files, use this XML format:
+
+<tool_call>
+<tool>create_file</tool>
+<path>relative/path/file.ext</path>
+<content>
+file content here
+</content>
+</tool_call>
+
+For running commands:
+<tool_call>
+<tool>run_command</tool>
+<command>npm install express</command>
+</tool_call>
+
+RULES:
+1. One tool_call block per file
+2. Use paths relative to the project directory
+3. Be helpful and explain what you're doing`;
+
+            return prompt;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadModels();
+            restoreAgents();
+            updateStats();
+            setInterval(updateStats, 5000);
+        });
+
+        function saveAgents() {
+            const data = [];
+            agents.forEach((agent, id) => {
+                data.push({
+                    id,
+                    name: agent.name,
+                    model: agent.model,
+                    project: agent.project,
+                    contexts: agent.contexts,
+                    messages: agent.messages.slice(-50)
+                });
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        function restoreAgents() {
+            try {
+                const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                data.forEach(agentData => restoreAgent(agentData));
+            } catch (e) { console.error('Restore failed:', e); }
+        }
+
+        function restoreAgent(agentData) {
+            const socket = io();
+            const agent = {
+                id: agentData.id,
+                name: agentData.name,
+                model: agentData.model,
+                project: agentData.project,
+                contexts: agentData.contexts || [],
+                socket,
+                messages: agentData.messages || [],
+                status: 'connecting',
+                thinking: false,
+                charCount: 0,
+                streamBuffer: '',
+                pendingToolCalls: []
+            };
+
+            setupSocketEvents(agent);
+            agents.set(agentData.id, agent);
+            createAgentView(agentData.id);
+            agent.messages.forEach(msg => renderMessage(agentData.id, msg.role, msg.content, false));
+            updateAgentsList();
+        }
+
+        function setupSocketEvents(agent) {
+            const socket = agent.socket;
+
+            socket.on('connect', () => {
+                agent.status = 'connected';
+                updateAgentsList();
+                socket.emit('init', { model: agent.model });
+            });
+
+            socket.on('ready', (data) => {
+                agent.status = 'ready';
+                agent.model = data.currentModel || agent.model;
+                updateAgentsList();
+                updateAgentHeader(agent.id);
+                saveAgents();
+            });
+
+            socket.on('modelSelected', (data) => {
+                agent.model = data.model;
+                updateAgentsList();
+                updateAgentHeader(agent.id);
+                saveAgents();
+            });
+
+            socket.on('token', (data) => {
+                agent.thinking = true;
+                agent.charCount = data.fullText.length;
+                agent.streamBuffer = data.fullText;
+                updateAgentsList();
+                updateCharCounter(agent.id, agent.charCount);
+                updateStreamingMessage(agent.id, data.fullText);
+            });
+
+            socket.on('messageComplete', (data) => {
+                agent.thinking = false;
+                agent.charCount = 0;
+                hideCharCounter(agent.id);
+
+                // Parse and execute tool calls
+                const toolCalls = parseToolCalls(data.response);
+                if (toolCalls.length > 0) {
+                    executeToolCalls(agent, toolCalls, data.response);
+                } else {
+                    finalizeMessage(agent.id, data.response);
+                }
+                updateAgentsList();
+            });
+
+            socket.on('error', (data) => {
+                agent.thinking = false;
+                hideCharCounter(agent.id);
+                addMessage(agent.id, 'assistant', 'Error: ' + data.message);
+            });
+
+            socket.on('disconnect', () => {
+                agent.status = 'disconnected';
+                updateAgentsList();
+            });
+        }
+
+        // Parse tool calls from response (handles various AI formatting variations)
+        function parseToolCalls(text) {
+            const calls = [];
+
+            // More flexible regex that handles newlines and whitespace variations
+            // Matches: <tool_call>...<tool>name</tool>...<path>path</path>...<content>...</content>...</tool_call>
+            const regex = /<tool_call>\s*<tool>\s*([^<]+)\s*<\/tool>\s*(?:<path>\s*([^<]*)\s*<\/path>)?\s*(?:<content>([\s\S]*?)<\/content>)?\s*(?:<command>\s*([^<]*)\s*<\/command>)?\s*<\/tool_call>/gi;
+
+            let match;
+            while ((match = regex.exec(text)) !== null) {
+                const toolCall = {
+                    tool: (match[1] || '').trim(),
+                    path: (match[2] || '').trim() || null,
+                    content: match[3] !== undefined ? match[3].replace(/^\n/, '').replace(/\n$/, '') : null,
+                    command: (match[4] || '').trim() || null
+                };
+
+                console.log('[Cloud] Parsed tool call:', toolCall.tool, toolCall.path);
+
+                if (toolCall.tool) {
+                    calls.push(toolCall);
+                }
+            }
+
+            // Debug: log if no tool calls found but text contains tool_call
+            if (calls.length === 0 && text.includes('<tool_call>')) {
+                console.warn('[Cloud] Found <tool_call> tag but regex did not match. Text sample:', text.substring(0, 500));
+            }
+
+            return calls;
+        }
+
+        // Execute tool calls via API
+        async function executeToolCalls(agent, toolCalls, fullResponse) {
+            const results = [];
+
+            for (const tc of toolCalls) {
+                if (tc.tool === 'create_file' || tc.tool === 'write_file') {
+                    try {
+                        const res = await fetch('/api/create-file', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                path: tc.path,
+                                content: tc.content,
+                                project: agent.project
+                            })
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            results.push({ success: true, path: tc.path });
+                        } else {
+                            results.push({ success: false, path: tc.path, error: data.error });
+                        }
+                    } catch (e) {
+                        results.push({ success: false, path: tc.path, error: e.message });
+                    }
+                } else if (tc.tool === 'run_command') {
+                    results.push({ success: false, command: tc.command, error: 'Commands must be run manually' });
+                }
+            }
+
+            // Add the response with tool execution results
+            finalizeMessageWithTools(agent.id, fullResponse, results);
+        }
+
+        function finalizeMessageWithTools(agentId, content, toolResults) {
+            const agent = agents.get(agentId);
+            if (!agent) return;
+
+            const streamingDiv = document.getElementById('streaming-' + agentId);
+            if (streamingDiv) streamingDiv.remove();
+
+            agent.messages.push({ role: 'assistant', content, timestamp: Date.now() });
+
+            const chat = document.getElementById('chat-' + agentId);
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+
+            let toolLogHtml = '';
+            if (toolResults.length > 0) {
+                toolLogHtml = '<div class="tool-log"><div class="tool-log-header">📁 Files Created</div>';
+                for (const r of toolResults) {
+                    if (r.success) {
+                        toolLogHtml += `<div class="tool-log-item success">✓ ${r.path}</div>`;
+                    } else {
+                        toolLogHtml += `<div class="tool-log-item error">✗ ${r.path || r.command}: ${r.error}</div>`;
+                    }
+                }
+                toolLogHtml += '</div>';
+            }
+
+            msgDiv.innerHTML = `
+                <div class="message-header">${agent.name}</div>
+                <div class="message-content">${formatContent(content)}${toolLogHtml}</div>
+            `;
+
+            chat.appendChild(msgDiv);
+            chat.scrollTop = chat.scrollHeight;
+            saveAgents();
+        }
+
+        async function loadModels() {
+            try {
+                const res = await fetch('/api/cloud-data');
+                const data = await res.json();
+                models = data.models || [];
+                populateModelSelects();
+            } catch (e) { console.error('Failed to load models:', e); }
+        }
+
+        function populateModelSelects() {
+            const selects = ['agent-model', 'settings-model'];
+            const textModels = models.filter(m => m.modality === 'text');
+            const imageModels = models.filter(m => m.modality === 'image');
+            const searchModels = models.filter(m => m.modality === 'search');
+
+            let html = '<option value="">Select a model</option>';
+            if (textModels.length) {
+                html += '<optgroup label="Text Models">';
+                textModels.forEach(m => { html += `<option value="${m.id}">${m.name}</option>`; });
+                html += '</optgroup>';
+            }
+            if (imageModels.length) {
+                html += '<optgroup label="Image Models">';
+                imageModels.forEach(m => { html += `<option value="${m.id}">${m.name}</option>`; });
+                html += '</optgroup>';
+            }
+            if (searchModels.length) {
+                html += '<optgroup label="Search Models">';
+                searchModels.forEach(m => { html += `<option value="${m.id}">${m.name}</option>`; });
+                html += '</optgroup>';
+            }
+
+            selects.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = html;
+            });
+        }
+
+        async function updateStats() {
+            try {
+                const res = await fetch('/api/cloud-data');
+                const data = await res.json();
+                document.getElementById('total-messages').textContent = data.totalMessages;
+                document.getElementById('uptime').textContent = Math.floor(data.uptime / 60000) + 'm';
+            } catch (e) { }
+        }
+
+        function updateCharCounter(agentId, count) {
+            const counter = document.getElementById('chars-' + agentId);
+            if (counter) {
+                counter.textContent = count.toLocaleString() + ' chars';
+                counter.classList.add('active');
+            }
+        }
+
+        function hideCharCounter(agentId) {
+            const counter = document.getElementById('chars-' + agentId);
+            if (counter) counter.classList.remove('active');
+        }
+
+        function showNewAgentModal() {
+            document.getElementById('new-agent-modal').classList.add('active');
+            document.getElementById('agent-name').value = 'agent-' + Math.random().toString(36).substr(2, 4);
+            newAgentContexts = [];
+            renderNewAgentContexts();
+        }
+
+        function hideNewAgentModal() { document.getElementById('new-agent-modal').classList.remove('active'); }
+
+        function addNewAgentContext() {
+            const input = document.getElementById('new-context-path');
+            const path = input.value.trim();
+            if (path && !newAgentContexts.includes(path)) {
+                newAgentContexts.push(path);
+                renderNewAgentContexts();
+                input.value = '';
+            }
+        }
+
+        function removeNewAgentContext(index) {
+            newAgentContexts.splice(index, 1);
+            renderNewAgentContexts();
+        }
+
+        function renderNewAgentContexts() {
+            const container = document.getElementById('new-agent-contexts');
+            if (newAgentContexts.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px;">No context files</div>';
+            } else {
+                container.innerHTML = newAgentContexts.map((ctx, i) => `
+                    <div class="context-item">
+                        <span class="context-item-name">${ctx}</span>
+                        <button class="context-item-remove" onclick="removeNewAgentContext(${i})">&times;</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function createAgent() {
+            const name = document.getElementById('agent-name').value || 'agent-' + Date.now();
+            const model = document.getElementById('agent-model').value;
+            const project = document.getElementById('agent-project').value;
+
+            const id = 'agent-' + Date.now();
+            const socket = io();
+
+            const agent = {
+                id, name, model, project,
+                contexts: [...newAgentContexts],
+                socket,
+                messages: [],
+                status: 'connecting',
+                thinking: false,
+                charCount: 0,
+                streamBuffer: '',
+                pendingToolCalls: []
+            };
+
+            setupSocketEvents(agent);
+            agents.set(id, agent);
+            createAgentView(id);
+            updateAgentsList();
+            selectAgent(id);
+            hideNewAgentModal();
+            saveAgents();
+        }
+
+        function createAgentView(agentId) {
+            const agent = agents.get(agentId);
+            const main = document.querySelector('.main');
+
+            const view = document.createElement('div');
+            view.className = 'agent-view';
+            view.id = 'view-' + agentId;
+            view.innerHTML = `
+                <div class="agent-header">
+                    <div class="agent-header-left">
+                        <span class="agent-title">${agent.name}</span>
+                        <span class="agent-badge" id="badge-${agentId}">${agent.model || 'No model'}</span>
+                        <span class="char-counter" id="chars-${agentId}">0 chars</span>
+                    </div>
+                    <div class="agent-controls">
+                        <button class="btn" onclick="openSettings('${agentId}')">Settings</button>
+                    </div>
+                </div>
+                <div class="chat-container" id="chat-${agentId}"></div>
+                <div class="input-container">
+                    <div class="input-wrapper">
+                        <textarea class="input-field" id="input-${agentId}" placeholder="Send a message..." onkeydown="handleInputKey(event, '${agentId}')"></textarea>
+                        <button class="send-btn" onclick="sendMessage('${agentId}')">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            main.appendChild(view);
+        }
+
+        function updateAgentHeader(agentId) {
+            const agent = agents.get(agentId);
+            if (!agent) return;
+            const badge = document.getElementById('badge-' + agentId);
+            if (badge) badge.textContent = agent.model || 'No model';
+        }
+
+        function updateAgentsList() {
+            const list = document.getElementById('agents-list');
+            let html = '<div class="agents-section-title">Active Agents</div>';
+
+            if (agents.size === 0) {
+                html += '<p style="color: var(--text-muted); padding: 12px; font-size: 13px;">No agents yet</p>';
+            } else {
+                agents.forEach((agent, id) => {
+                    const statusClass = agent.thinking ? 'thinking' : (agent.status === 'ready' ? '' : 'idle');
+                    html += `
+                        <div class="agent-item ${id === activeAgentId ? 'active' : ''}" onclick="selectAgent('${id}')">
+                            <div class="agent-item-header">
+                                <span class="agent-name">${agent.name}</span>
+                                <div class="agent-status ${statusClass}"></div>
+                            </div>
+                            <div class="agent-model">${agent.model || 'Connecting...'}</div>
+                        </div>
+                    `;
+                });
+            }
+            list.innerHTML = html;
+        }
+
+        function selectAgent(agentId) {
+            activeAgentId = agentId;
+            document.querySelectorAll('.agent-view').forEach(v => v.classList.remove('active'));
+            document.getElementById('empty-state').style.display = 'none';
+            const view = document.getElementById('view-' + agentId);
+            if (view) view.classList.add('active');
+            updateAgentsList();
+            const input = document.getElementById('input-' + agentId);
+            if (input) input.focus();
+        }
+
+        function handleInputKey(event, agentId) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage(agentId);
+            }
+        }
+
+        async function sendMessage(agentId) {
+            const agent = agents.get(agentId);
+            const input = document.getElementById('input-' + agentId);
+            const message = input.value.trim();
+
+            if (!message || !agent || agent.thinking) return;
+
+            // Build full message with system prompt for first message
+            let fullMessage = message;
+            if (agent.messages.length === 0) {
+                const systemPrompt = buildSystemPrompt(agent);
+
+                // Load context files
+                let contextContent = '';
+                for (const ctxPath of agent.contexts) {
+                    try {
+                        const res = await fetch('/api/read-file', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: ctxPath, project: agent.project })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            contextContent += `\n\n### Context: ${ctxPath}\n${data.content}`;
+                        }
+                    } catch (e) { console.log('Could not load:', ctxPath); }
+                }
+
+                fullMessage = systemPrompt + contextContent + '\n\n---\n\nUser: ' + message;
+            }
+
+            agent.messages.push({ role: 'user', content: message, timestamp: Date.now() });
+            renderMessage(agentId, 'user', message, false);
+            saveAgents();
+
+            input.value = '';
+            addStreamingPlaceholder(agentId);
+
+            agent.thinking = true;
+            updateAgentsList();
+
+            agent.socket.emit('sendMessage', { message: fullMessage, conversationId: Date.now().toString() });
+        }
+
+        function renderMessage(agentId, role, content, parse = true) {
+            const chat = document.getElementById('chat-' + agentId);
+            if (!chat) return;
+
+            const agent = agents.get(agentId);
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `message ${role}`;
+            msgDiv.innerHTML = `
+                <div class="message-header">${role === 'user' ? 'You' : agent?.name || 'Agent'}</div>
+                <div class="message-content">${parse ? formatContent(content) : escapeHtml(content)}</div>
+            `;
+            chat.appendChild(msgDiv);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function addStreamingPlaceholder(agentId) {
+            const chat = document.getElementById('chat-' + agentId);
+            if (!chat) return;
+            const agent = agents.get(agentId);
+            const div = document.createElement('div');
+            div.className = 'message';
+            div.id = 'streaming-' + agentId;
+            div.innerHTML = `<div class="message-header">${agent?.name || 'Agent'}</div><div class="message-content"><span class="cursor">▋</span></div>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function updateStreamingMessage(agentId, fullText) {
+            const streamingDiv = document.getElementById('streaming-' + agentId);
+            if (!streamingDiv) return;
+
+            const content = streamingDiv.querySelector('.message-content');
+            if (content) content.innerHTML = formatContentStreaming(fullText) + '<span class="cursor">▋</span>';
+
+            const chat = document.getElementById('chat-' + agentId);
+            if (chat) chat.scrollTop = chat.scrollHeight;
+        }
+
+        function finalizeMessage(agentId, content) {
+            const agent = agents.get(agentId);
+            if (!agent) return;
+
+            const streamingDiv = document.getElementById('streaming-' + agentId);
+            if (streamingDiv) streamingDiv.remove();
+
+            agent.messages.push({ role: 'assistant', content, timestamp: Date.now() });
+            renderMessage(agentId, 'assistant', content, true);
+            saveAgents();
+        }
+
+        function addMessage(agentId, role, content) {
+            const agent = agents.get(agentId);
+            if (!agent) return;
+            const streamingDiv = document.getElementById('streaming-' + agentId);
+            if (streamingDiv) streamingDiv.remove();
+            agent.messages.push({ role, content, timestamp: Date.now() });
+            renderMessage(agentId, role, content, true);
+            saveAgents();
+        }
+
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = { 'js': 'js', 'jsx': 'js', 'ts': 'ts', 'tsx': 'ts', 'html': 'html', 'css': 'css', 'md': 'md' };
+            return icons[ext] || '';
+        }
+
+        // Format content while streaming (show file cards as they come in)
+        function formatContentStreaming(text) {
+            if (!text) return '';
+            let result = escapeHtml(text);
+
+            // Detect partial tool calls and show them as cards
+            const partialToolMatch = result.match(/&lt;tool_call&gt;\s*&lt;tool&gt;\s*(.*?)\s*&lt;\/tool&gt;\s*(?:&lt;path&gt;\s*(.*?)\s*&lt;\/path&gt;)?/);
+            if (partialToolMatch) {
+                const toolName = partialToolMatch[1];
+                const filePath = partialToolMatch[2] || 'writing...';
+                const fileName = filePath.split(/[\/\\]/).pop();
+                const iconClass = getFileIcon(fileName);
+
+                // Replace the tool call block with a streaming card
+                const cardHtml = `<div class="file-card">
+                    <div class="file-card-header">
+                        <div class="file-icon ${iconClass}">${iconClass.toUpperCase() || 'FILE'}</div>
+                        <div class="file-info">
+                            <div class="file-name">${fileName}</div>
+                            <div class="file-path">${filePath}</div>
+                        </div>
+                        <span class="file-status streaming">Writing...</span>
+                    </div>
+                </div>`;
+
+                result = result.replace(/&lt;tool_call&gt;[\s\S]*$/, cardHtml);
+            }
+
+            result = result.replace(/\n/g, '<br>');
+            return result;
+        }
+
+        function formatContent(text) {
+            if (!text) return '';
+            let result = escapeHtml(text);
+
+            // Replace complete tool_call blocks with file cards
+            result = result.replace(/&lt;tool_call&gt;\s*&lt;tool&gt;\s*(.*?)\s*&lt;\/tool&gt;\s*&lt;path&gt;\s*(.*?)\s*&lt;\/path&gt;\s*&lt;content&gt;([\s\S]*?)&lt;\/content&gt;\s*&lt;\/tool_call&gt;/g,
+                (match, tool, filePath, content) => {
+                    const fileName = filePath.split(/[\/\\]/).pop();
+                    const iconClass = getFileIcon(fileName);
+                    const cardId = 'file-' + Math.random().toString(36).substr(2, 9);
+                    return `<div class="file-card" id="${cardId}" onclick="toggleFileCard('${cardId}')">
+                        <div class="file-card-header">
+                            <div class="file-icon ${iconClass}">${iconClass.toUpperCase() || 'FILE'}</div>
+                            <div class="file-info">
+                                <div class="file-name">${fileName}</div>
+                                <div class="file-path">${filePath}</div>
+                            </div>
+                            <span class="file-status">Created</span>
+                            <svg class="file-expand-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                        </div>
+                        <div class="file-content"><pre>${content.trim()}</pre></div>
+                    </div>`;
+                });
+
+            // Code blocks
+            result = result.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            result = result.replace(/`([^`]+)`/g, '<code>$1</code>');
+            result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            result = result.replace(/\n/g, '<br>');
+
+            return result;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function toggleFileCard(cardId) {
+            event.stopPropagation();
+            const card = document.getElementById(cardId);
+            if (card) card.classList.toggle('expanded');
+        }
+
+        function clearChat(agentId) {
+            const agent = agents.get(agentId);
+            if (!agent) return;
+            agent.messages = [];
+            const chat = document.getElementById('chat-' + agentId);
+            if (chat) chat.innerHTML = '';
+            saveAgents();
+        }
+
+        function openSettings(agentId) {
+            activeAgentId = agentId;
+            const agent = agents.get(agentId);
+            if (!agent) return;
+            document.getElementById('settings-model').value = agent.model || '';
+            document.getElementById('settings-project').value = agent.project || '';
+            renderSettingsContexts();
+            document.getElementById('settings-panel').classList.add('open');
+        }
+
+        function closeSettings() { document.getElementById('settings-panel').classList.remove('open'); }
+
+        function renderSettingsContexts() {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            const container = document.getElementById('settings-contexts');
+            if (agent.contexts.length === 0) {
+                container.innerHTML = '<div style="color: var(--text-muted); font-size: 13px;">No context files</div>';
+            } else {
+                container.innerHTML = agent.contexts.map((ctx, i) => `
+                    <div class="context-item">
+                        <span class="context-item-name">${ctx}</span>
+                        <button class="context-item-remove" onclick="removeSettingsContext(${i})">&times;</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addSettingsContext() {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            const input = document.getElementById('settings-context-path');
+            const path = input.value.trim();
+            if (path && !agent.contexts.includes(path)) {
+                agent.contexts.push(path);
+                renderSettingsContexts();
+                input.value = '';
+                saveAgents();
+            }
+        }
+
+        function removeSettingsContext(index) {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            agent.contexts.splice(index, 1);
+            renderSettingsContexts();
+            saveAgents();
+        }
+
+        function updateAgentModel() {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            const newModel = document.getElementById('settings-model').value;
+            if (newModel && newModel !== agent.model) agent.socket.emit('selectModel', { model: newModel });
+        }
+
+        function updateAgentProject() {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            agent.project = document.getElementById('settings-project').value;
+            saveAgents();
+        }
+
+        function deleteAgent() {
+            const agent = agents.get(activeAgentId);
+            if (!agent) return;
+            if (confirm('Delete this agent?')) {
+                agent.socket.disconnect();
+                agents.delete(activeAgentId);
+                const view = document.getElementById('view-' + activeAgentId);
+                if (view) view.remove();
+                activeAgentId = null;
+                document.getElementById('empty-state').style.display = 'flex';
+                closeSettings();
+                updateAgentsList();
+                saveAgents();
+            }
+        }
+    </script>
+</body>
+
+</html>

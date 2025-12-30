@@ -1,0 +1,35 @@
+{
+  "name": "lmarena-wrapper",
+  "version": "1.0.0",
+  "description": "Local wrapper application for LMArena with browser automation",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "setup": "node server/setup.js",
+    "cli": "node cli/cli.js",
+    "grove": "node cli/cli.js",
+    "client": "npm run dev --prefix client",
+    "build": "npm run build --prefix client"
+  },
+  "keywords": [
+    "lmarena",
+    "ai",
+    "chat",
+    "puppeteer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "2captcha": "^3.0.5-2",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "puppeteer": "^24.34.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-recaptcha": "^3.6.8",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
+  }
+}

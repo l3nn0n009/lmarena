@@ -1,0 +1,180 @@
+/* Code Canvas Component Styles */
+
+.code-canvas {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0;
+    display: flex;
+    flex-direction: column;
+    height: 400px;
+    transition: all 0.3s ease;
+}
+
+.code-canvas.expanded {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    right: 20px;
+    bottom: 20px;
+    height: auto;
+    z-index: 1000;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.code-canvas.expanded::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: -1;
+}
+
+.canvas-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-primary);
+    border-bottom: 1px solid var(--border-color);
+    gap: 12px;
+}
+
+.canvas-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.canvas-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.canvas-tab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.canvas-tab.active {
+    background: var(--accent);
+    color: white;
+}
+
+.canvas-tab svg {
+    opacity: 0.8;
+}
+
+.canvas-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.canvas-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.canvas-action-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.canvas-action-btn.close:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.canvas-content {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+}
+
+.canvas-preview {
+    width: 100%;
+    height: 100%;
+    border: none;
+    background: white;
+}
+
+/* Monaco Editor customizations */
+.canvas-content .monaco-editor {
+    padding: 0 !important;
+}
+
+.canvas-content .monaco-editor .margin {
+    background: var(--bg-secondary) !important;
+}
+
+.canvas-content .monaco-editor,
+.canvas-content .monaco-editor-background,
+.canvas-content .monaco-editor .inputarea.ime-input {
+    background: var(--bg-secondary) !important;
+}
+
+/* Loading state for Monaco */
+.canvas-content>div {
+    height: 100%;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .code-canvas {
+        height: 300px;
+        border-radius: 8px;
+    }
+
+    .code-canvas.expanded {
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        border-radius: 8px;
+    }
+
+    .canvas-header {
+        padding: 6px 8px;
+    }
+
+    .canvas-tab {
+        padding: 5px 10px;
+        font-size: 12px;
+    }
+
+    .canvas-tab span {
+        display: none;
+    }
+
+    .canvas-action-btn {
+        width: 28px;
+        height: 28px;
+    }
+}
+
+/* Dark theme overrides for preview iframe */
+.code-canvas .canvas-preview {
+    color-scheme: light;
+}
