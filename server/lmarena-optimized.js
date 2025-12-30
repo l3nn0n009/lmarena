@@ -210,40 +210,24 @@ class LMArenaOptimized {
 
     async stripDOM() {
         await this.page.evaluate(() => {
-            // SAFE stripping - CSS only, no element removal
-            // Element removal can break React/SSE functionality
+            // Performance: CSS to hide elements + DOM removal for heavy stuff
             const style = document.createElement('style');
             style.id = 'nebula-strip';
             style.textContent = `
-                /* Disable animations for performance */
+                /* Disable animations */
                 *, *::before, *::after { 
                     animation-duration: 0s !important;
                     transition-duration: 0s !important;
                 }
                 
-                /* Hide sidebar */
-                aside, [data-side="left"], .sidebar { 
-                    display: none !important; 
-                }
-                
-                /* Hide header */
-                header, nav { 
-                    display: none !important; 
-                }
-                
-                /* Hide chat history (old messages) - saves memory */
-                .prose, [class*="prose"], ul[class*="flex-col-reverse"] > li:not(:last-child) { 
-                    display: none !important; 
-                    height: 0 !important;
-                    overflow: hidden !important;
-                }
-                
-                /* Hide banners */
+                /* Hide UI chrome */
+                aside, [data-side="left"], .sidebar,
+                header, nav, footer,
                 [class*="banner"], [class*="announcement"] { 
                     display: none !important; 
                 }
                 
-                /* Keep textarea visible */
+                /* Keep input area */
                 textarea { 
                     display: block !important; 
                     visibility: visible !important;
@@ -251,8 +235,43 @@ class LMArenaOptimized {
             `;
             document.head.appendChild(style);
 
-            console.log('[Nebula] DOM stripped (CSS only)');
+            // Remove heavy DOM elements to prevent memory bloat
+            const removeSelectors = [
+                'aside', 'header', 'nav', 'footer',
+                '.sidebar', '[data-side]',
+                '[class*="banner"]', '[class*="announcement"]',
+                'video', 'canvas'
+            ];
+
+            removeSelectors.forEach(sel => {
+                try {
+                    document.querySelectorAll(sel).forEach(el => el.remove());
+                } catch (e) { }
+            });
+
+            console.log('[Nebula] Initial DOM stripped');
         });
+    }
+
+    // Call this AFTER each response completes to clean up chat history
+    async cleanupChatHistory() {
+        try {
+            await this.page.evaluate(() => {
+                // Remove old chat messages but keep the last one (current response)
+                const messages = document.querySelectorAll('.prose, [class*="prose"]');
+                messages.forEach((el, i) => {
+                    if (i < messages.length - 1) el.remove();
+                });
+
+                // Also clean up message list items
+                const listItems = document.querySelectorAll('ul[class*="flex-col-reverse"] > li');
+                listItems.forEach((el, i) => {
+                    if (i > 0) el.remove(); // Keep only the last one
+                });
+            });
+        } catch (e) {
+            // Page may have navigated, ignore
+        }
     }
 
 
